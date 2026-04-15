@@ -1,8 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// PADI — Rider Registration + Dashboard
-// Save this as: src/RiderDashboard.jsx
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { use, useEffect, useRef, useState } from "react";
 import { auth, db } from "./lib/firebase";
 import {

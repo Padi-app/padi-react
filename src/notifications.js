@@ -16,10 +16,6 @@ getDocs,
 
 const VAPID_KEY = "BHXvanz8oXad8HhpHsV1IYKIzoVH5utOXc9FZTBbHAzwtMigNDVzTmTu9g96217gh99dPey3Qaxy-8kTXEhe5KY";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// REQUEST PERMISSION + GET FCM TOKEN
-// Call this once after user logs in
-// ─────────────────────────────────────────────────────────────────────────────
 export async function requestNotificationPermission(userId, role = "student") {
 try {
 // Ask user for permission
@@ -55,10 +51,8 @@ return null;
 }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // LISTEN FOR FOREGROUND MESSAGES
-// Call this in your app root to handle notifications when app is open
-// ─────────────────────────────────────────────────────────────────────────────
+
 export function listenForMessages(onNotification) {
 if (!messaging) return;
 return onMessage(messaging, (payload) => {
@@ -71,10 +65,10 @@ data: payload.data || {},
 });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+
 // SAVE NOTIFICATION TO FIRESTORE
 // Creates a record so users can see notification history
-// ─────────────────────────────────────────────────────────────────────────────
+
 export async function saveNotification({ userId, title, body, type, data = {} }) {
 try {
 await addDoc(collection(db, "notifications"), {
@@ -91,10 +85,10 @@ console.error("Failed to save notification:", e);
 }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+
 // NOTIFICATION TRIGGERS
 // Call these at the right moments in your app
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 // When student places an order → notify vendor
 export async function notifyVendorNewOrder({ vendorId, orderId, studentName, items }) {

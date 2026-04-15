@@ -42,7 +42,7 @@ return (
 <div className="splash">
 <div className="splash-logo">P</div>
 <div className="splash-name">PADI</div>
-<div style={{ color: "var(–muted)", fontSize: 15 }}>Your campus super app</div>
+<div style={{ color: "var(-muted)", fontSize: 15 }}>Your campus super app</div>
 <div className="splash-pulse" />
 </div>
 );
@@ -59,12 +59,12 @@ return (
 <div className="home-header">
 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 <div>
-<div style={{ fontSize: 11, color: "var(–muted)", letterSpacing: .5 }}>Good afternoon</div>
+<div style={{ fontSize: 11, color: "var(-muted)", letterSpacing: .5 }}>Good afternoon</div>
 <div className="h2" style={{ marginTop: 2 }}>{firstName}</div>
 </div>
-<div style={{ width: 40, height: 40, borderRadius: 12, background: "var(–surface2)", border: "1px solid var(–border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", position: "relative" }}>
+<div style={{ width: 40, height: 40, borderRadius: 12, background: "var(-surface2)", border: "1px solid var(-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", position: "relative" }}>
 🔔
-<div style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: "var(–brand)", border: "2px solid var(–bg)" }} />
+<div style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: "var(-brand)", border: "2px solid var(-bg)" }} />
 </div>
 </div>
 </div>
@@ -146,7 +146,7 @@ return (
 <div className="listing-header">
 <div style={{ flex: 1 }}>
 <div className="h3">Food & Groceries</div>
-<div style={{ color: "var(–muted)", fontSize: 11, marginTop: 2 }}>
+<div style={{ color: "var(-muted)", fontSize: 11, marginTop: 2 }}>
 {loading ? "Loading..." : `${foods.length} items available`}
 </div>
 </div>
@@ -302,13 +302,13 @@ return (
 <div className="listing-header">
 <div style={{ flex: 1 }}>
 <div className="h3">Live Tracking</div>
-<div style={{ color: "var(–muted)", fontSize: 11, marginTop: 2 }}>Order #PADI-2847</div>
+<div style={{ color: "var(-muted)", fontSize: 11, marginTop: 2 }}>Order #PADI-2847</div>
 </div>
 </div>
 <div className="track-map-mock">
 <div className="rider-dot" />
-<div style={{ fontSize: 12, color: "var(–muted)", marginTop: 8 }}>Rider is on the way</div>
-<div style={{ position: "absolute", top: 14, right: 14, background: "var(–bg)", borderRadius: 10, padding: "6px 12px", border: "1px solid var(–border)", fontSize: 12, fontWeight: 600 }}>~5 min away</div>
+<div style={{ fontSize: 12, color: "var(-muted)", marginTop: 8 }}>Rider is on the way</div>
+<div style={{ position: "absolute", top: 14, right: 14, background: "var(-bg)", borderRadius: 10, padding: "6px 12px", border: "1px solid var(-border)", fontSize: 12, fontWeight: 600 }}>~5 min away</div>
 </div>
 <div style={{ padding: "20px 20px 0" }}>
 <div className="label" style={{ marginBottom: 16 }}>Order Progress</div>
@@ -319,10 +319,10 @@ return (
 {i < TRACK_STEPS.length - 1 && <div className={`step-line ${i < step ? "step-line-done" : "step-line-pending"}`} />}
 </div>
 <div style={{ flex: 1 }}>
-<div className="step-title" style={{ color: i > step ? "var(–muted)" : "var(–text)" }}>{s.label}</div>
+<div className="step-title" style={{ color: i > step ? "var(-muted)" : "var(-text)" }}>{s.label}</div>
 <div className="step-sub">{s.sub}</div>
 </div>
-{i < step && <span style={{ color: "var(–green)", fontSize: 13, fontWeight: 700 }}>✓</span>}
+{i < step && <span style={{ color: "var(-green)", fontSize: 13, fontWeight: 700 }}>✓</span>}
 </div>
 ))}
 </div>
@@ -330,7 +330,7 @@ return (
 );
 }
 
-// ─── Profile Screen ───────────────────────────────────────────────────────────
+// Profile Screen
 function ProfileScreen() {
 const { logout, profile } = useAuth();
 const name = profile?.name || "Student";
@@ -341,8 +341,8 @@ return (
 <div className="screen">
 <div className="profile-hero">
 <div className="profile-avatar">{initials}</div>
-<div style={{ fontFamily: "var(–font-head)", fontSize: 22, fontWeight: 800 }}>{name}</div>
-<div style={{ fontSize: 14, color: "var(–muted)", marginTop: 4 }}>{email}</div>
+<div style={{ fontFamily: "var(-font-head)", fontSize: 22, fontWeight: 800 }}>{name}</div>
+<div style={{ fontSize: 14, color: "var(-muted)", marginTop: 4 }}>{email}</div>
 <div style={{ marginTop: 12 }}><span className="chip active">Student</span></div>
 </div>
 <div className="profile-stats">
@@ -369,7 +369,7 @@ return (
 );
 }
 
-// ─── Main App ─────────────────────────────────────────────────────────────────
+// Main App
 export default function PADIApp() {
   const {
     user,

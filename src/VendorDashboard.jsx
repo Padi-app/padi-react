@@ -61,6 +61,20 @@ const VD_CSS = `
   --font-head: 'Syne', sans-serif;
 }
 
+html, body, #root {
+  width: 100%;
+  min-height: 100%;
+}
+
+img, video {
+  max-width: 100%;
+  height: auto;
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
 .vd-root {
   min-height: 100vh;
   background: var(--bg);
@@ -81,6 +95,8 @@ const VD_CSS = `
   position: fixed;
   height: 100vh;
   overflow-y: auto;
+  top: 0;
+  left: 0;
 }
 
 .vd-sidebar-top {
@@ -93,6 +109,7 @@ const VD_CSS = `
   font-size: 17px;
   font-weight: 800;
   margin-top: 10px;
+  line-height: 1.3;
 }
 
 .vd-shop-status {
@@ -171,6 +188,50 @@ const VD_CSS = `
   text-transform: uppercase;
 }
 
+/* ── Mobile controls ── */
+.vd-menu-btn {
+  display: none;
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 1200;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 22px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.vd-close-btn {
+  display: none;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.vd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+  z-index: 1050;
+}
+
+.vd-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* ── Main ── */
 .vd-main {
   margin-left: 230px;
@@ -178,6 +239,7 @@ const VD_CSS = `
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .vd-topbar {
@@ -208,12 +270,13 @@ const VD_CSS = `
 .vd-content {
   padding: 24px 28px;
   flex: 1;
+  min-width: 0;
 }
 
 /* ── Stats ── */
 .vd-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -223,6 +286,7 @@ const VD_CSS = `
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 18px;
+  min-width: 0;
 }
 
 .vd-stat-label {
@@ -238,6 +302,14 @@ const VD_CSS = `
   font-family: var(--font-head);
   font-size: 26px;
   font-weight: 800;
+  word-break: break-word;
+}
+
+.vd-orders-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 /* ── Order cards ── */
@@ -253,6 +325,7 @@ const VD_CSS = `
   border-radius: 16px;
   overflow: hidden;
   transition: transform .15s;
+  min-width: 0;
 }
 
 .vd-order-card:hover {
@@ -275,6 +348,7 @@ const VD_CSS = `
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -296,6 +370,7 @@ const VD_CSS = `
 .vd-order-item {
   display: flex;
   justify-content: space-between;
+  gap: 10px;
   font-size: 13px;
   padding: 4px 0;
 }
@@ -306,6 +381,8 @@ const VD_CSS = `
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .vd-order-total {
@@ -318,6 +395,7 @@ const VD_CSS = `
 .vd-order-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .vd-btn-accept {
@@ -361,6 +439,7 @@ const VD_CSS = `
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  text-transform: capitalize;
 }
 
 .vd-badge-pending {
@@ -411,6 +490,7 @@ const VD_CSS = `
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
+  min-width: 0;
 }
 
 .vd-menu-card-body {
@@ -421,6 +501,7 @@ const VD_CSS = `
   font-family: var(--font-head);
   font-size: 15px;
   font-weight: 700;
+  line-height: 1.35;
 }
 
 .vd-menu-card-desc {
@@ -434,9 +515,11 @@ const VD_CSS = `
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding: 10px 14px;
   background: var(--surface2);
   border-top: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 
 .vd-menu-price {
@@ -449,6 +532,7 @@ const VD_CSS = `
 .vd-menu-actions {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .vd-btn-sm {
@@ -603,6 +687,7 @@ const VD_CSS = `
   color: var(--muted);
   background: var(--surface2);
   transition: all .15s;
+  user-select: none;
 }
 
 .vd-filter-tab.active {
@@ -664,12 +749,13 @@ const VD_CSS = `
   padding: 12px 18px;
   font-size: 14px;
   font-weight: 500;
-  z-index: 999;
+  z-index: 1300;
   box-shadow: 0 8px 32px rgba(0,0,0,.5);
   display: flex;
   align-items: center;
   gap: 8px;
   animation: toastIn .3s ease both;
+  max-width: calc(100vw - 24px);
 }
 
 @keyframes toastIn {
@@ -694,6 +780,83 @@ const VD_CSS = `
   padding: 40px;
   max-width: 440px;
   text-align: center;
+  width: 100%;
+}
+
+.vd-overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .vd-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vd-orders-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .vd-root {
+    display: block;
+  }
+
+  .vd-menu-btn {
+    display: flex;
+  }
+
+  .vd-close-btn {
+    display: inline-block;
+  }
+
+  .vd-sidebar {
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    z-index: 1100;
+  }
+
+  .vd-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .vd-main {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .vd-topbar {
+    padding: 16px 16px 16px 68px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .vd-content {
+    padding: 16px;
+  }
+
+  .vd-stats,
+  .vd-orders-stats-grid,
+  .vd-overview-grid,
+  .vd-orders-grid,
+  .vd-menu-grid,
+  .vd-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .vd-login-card,
+  .vd-pending-card {
+    padding: 24px;
+  }
+
+  .vd-toast {
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -1060,7 +1223,7 @@ function VendorPending({ vendor, onLogout }) {
 }
 
 // ─── Orders Page ──────────────────────────────────────────────────────────────
-function OrdersPage({ vendorId, showToast }) {
+function OrdersPage({ vendorId, vendorName, showToast }) {
   const [orders, setOrders] = useState([]);
   const [filter, setFilter] = useState("pending");
   const isFirstLoad = useRef(true);
@@ -1078,7 +1241,7 @@ function OrdersPage({ vendorId, showToast }) {
       if (!isFirstLoad.current) {
         snap.docChanges().forEach((change) => {
           if (change.type === "added") {
-            showToast("🔔 New order received!", "var(--brand)");
+            showToast("🔔 New order received!");
           }
         });
       }
@@ -1091,35 +1254,35 @@ function OrdersPage({ vendorId, showToast }) {
   }, [vendorId, showToast]);
 
   const updateOrderStatus = async (order, newStatus) => {
-  await updateDoc(doc(db, "orders", order.id), {
-    status: newStatus,
-    updatedAt: serverTimestamp(),
-  });
-
-  if (newStatus === "accepted") {
-    await notifyStudentOrderAccepted({
-      studentId: order.studentId,
-      vendorName: vendor?.businessName || "Vendor",
-      orderId: order.id,
+    await updateDoc(doc(db, "orders", order.id), {
+      status: newStatus,
+      updatedAt: serverTimestamp(),
     });
-  }
 
-  if (newStatus === "ready") {
-    await notifyRidersOrderReady({
-      orderId: order.id,
-      vendorName: vendor?.businessName || "Vendor",
-      deliveryAddress: order.deliveryAddress,
-    });
-  }
+    if (newStatus === "accepted") {
+      await notifyStudentOrderAccepted({
+        studentId: order.studentId,
+        vendorName: vendorName || "Vendor",
+        orderId: order.id,
+      });
+    }
 
-  if (newStatus === "delivered") {
-    await notifyStudentOrderDelivered({
-      studentId: order.studentId,
-      vendorName: vendor?.businessName || "Vendor",
-      orderId: order.id,
-    });
-  }
-};
+    if (newStatus === "ready") {
+      await notifyRidersOrderReady({
+        orderId: order.id,
+        vendorName: vendorName || "Vendor",
+        deliveryAddress: order.deliveryAddress,
+      });
+    }
+
+    if (newStatus === "delivered") {
+      await notifyStudentOrderDelivered({
+        studentId: order.studentId,
+        vendorName: vendorName || "Vendor",
+        orderId: order.id,
+      });
+    }
+  };
 
   const filtered = orders.filter((o) =>
     filter === "all" ? true : o.status === filter
@@ -1167,14 +1330,7 @@ function OrdersPage({ vendorId, showToast }) {
 
   return (
     <div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4,1fr)",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
+      <div className="vd-orders-stats-grid">
         {[
           { label: "Pending", val: counts.pending, color: "var(--yellow)" },
           { label: "Accepted", val: counts.accepted, color: "var(--green)" },
@@ -1285,9 +1441,7 @@ function OrdersPage({ vendorId, showToast }) {
                     <span>
                       {item.qty}x {item.name}
                     </span>
-                    <span
-                      style={{ color: "var(--brand)", fontWeight: 600 }}
-                    >
+                    <span style={{ color: "var(--brand)", fontWeight: 600 }}>
                       ₦{(item.price * item.qty).toLocaleString()}
                     </span>
                   </div>
@@ -1427,7 +1581,7 @@ function MenuPage({ vendorId, showToast }) {
   };
 
   const deleteItem = async (itemId) => {
-    if (!confirm("Delete this item?")) return;
+    if (!window.confirm("Delete this item?")) return;
 
     await deleteDoc(doc(db, "vendors", vendorId, "menu", itemId));
     showToast("Item deleted.");
@@ -1506,7 +1660,7 @@ function MenuPage({ vendorId, showToast }) {
               />
             </div>
 
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button className="vd-btn-ghost" onClick={resetForm}>
                 Cancel
               </button>
@@ -1691,13 +1845,14 @@ function VendorOverview({ vendor, orders }) {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="vd-overview-grid">
         <div
           style={{
             background: "var(--surface)",
             border: "1px solid var(--border)",
             borderRadius: 16,
             overflow: "hidden",
+            minWidth: 0,
           }}
         >
           <div
@@ -1730,6 +1885,7 @@ function VendorOverview({ vendor, orders }) {
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
+                  gap: 12,
                   padding: "12px 18px",
                   borderBottom: "1px solid var(--border)",
                   fontSize: 13,
@@ -1777,6 +1933,7 @@ function VendorOverview({ vendor, orders }) {
             border: "1px solid var(--border)",
             borderRadius: 16,
             padding: 20,
+            minWidth: 0,
           }}
         >
           <div
@@ -1811,13 +1968,16 @@ function VendorOverview({ vendor, orders }) {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
+                gap: 12,
                 padding: "9px 0",
                 borderBottom: "1px solid var(--border)",
                 fontSize: 13,
               }}
             >
               <span style={{ color: "var(--muted)" }}>{r.label}</span>
-              <span style={{ fontWeight: 500 }}>{r.val || "N/A"}</span>
+              <span style={{ fontWeight: 500, textAlign: "right" }}>
+                {r.val || "N/A"}
+              </span>
             </div>
           ))}
         </div>
@@ -1833,6 +1993,7 @@ export default function VendorDashboard() {
   const [orders, setOrders] = useState([]);
   const [toast, setToast] = useState(null);
   const [isOnline, setIsOnline] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const showToast = (msg, color = "var(--green)") => {
     setToast({ msg, color });
@@ -1841,11 +2002,11 @@ export default function VendorDashboard() {
 
   useEffect(() => {
     if (vendor?.uid) {
-        requestNotificationPermission(vendor.uid, "vendor");
-        const unsub = listenForMessages((notif) => showToast(notif.title));
-        return unsub;
-     }
-    }, [vendor?.uid]);
+      requestNotificationPermission(vendor.uid, "vendor");
+      const unsub = listenForMessages((notif) => showToast(notif.title));
+      return unsub;
+    }
+  }, [vendor?.uid]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -1962,35 +2123,65 @@ export default function VendorDashboard() {
     <div className="vd-root">
       <style>{VD_CSS}</style>
 
-      <div className="vd-sidebar">
+      <button
+        className="vd-menu-btn"
+        onClick={() => setSidebarOpen(true)}
+        aria-label="Open menu"
+      >
+        ☰
+      </button>
+
+      <div
+        className={`vd-overlay ${sidebarOpen ? "show" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <div className={`vd-sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="vd-sidebar-top">
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: "linear-gradient(135deg,#FF5A1F,#FF8C42)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 800,
-                color: "#fff",
-                fontSize: 15,
-              }}
-            >
-              P
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: "linear-gradient(135deg,#FF5A1F,#FF8C42)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 800,
+                  color: "#fff",
+                  fontSize: 15,
+                }}
+              >
+                P
+              </div>
+
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--muted)",
+                  fontWeight: 600,
+                }}
+              >
+                PADI Vendor
+              </div>
             </div>
 
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--muted)",
-                fontWeight: 600,
-              }}
+            <button
+              className="vd-close-btn"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close menu"
             >
-              PADI Vendor
-            </div>
+              ✕
+            </button>
           </div>
 
           <div className="vd-shop-name">{vendor.businessName}</div>
@@ -2021,9 +2212,7 @@ export default function VendorDashboard() {
                 : "rgba(0,192,127,.1)",
               color: isOnline ? "var(--red)" : "var(--green)",
               border: `1px solid ${
-                isOnline
-                  ? "rgba(255,68,68,.2)"
-                  : "rgba(0,192,127,.2)"
+                isOnline ? "rgba(255,68,68,.2)" : "rgba(0,192,127,.2)"
               }`,
               borderRadius: 8,
               padding: "6px 12px",
@@ -2044,13 +2233,14 @@ export default function VendorDashboard() {
             <div
               key={n.key}
               className={`vd-nav-item ${page === n.key ? "active" : ""}`}
-              onClick={() => setPage(n.key)}
+              onClick={() => {
+                setPage(n.key);
+                setSidebarOpen(false);
+              }}
             >
               <span className="vd-nav-icon">{n.icon}</span>
               <span>{n.label}</span>
-              {n.badge > 0 && (
-                <span className="vd-nav-badge">{n.badge}</span>
-              )}
+              {n.badge > 0 && <span className="vd-nav-badge">{n.badge}</span>}
             </div>
           ))}
         </div>
@@ -2102,7 +2292,11 @@ export default function VendorDashboard() {
             <VendorOverview vendor={vendor} orders={orders} />
           )}
           {page === "orders" && (
-            <OrdersPage vendorId={vendor.uid} showToast={showToast} />
+            <OrdersPage
+              vendorId={vendor.uid}
+              vendorName={vendor.businessName}
+              showToast={showToast}
+            />
           )}
           {page === "menu" && (
             <MenuPage vendorId={vendor.uid} showToast={showToast} />

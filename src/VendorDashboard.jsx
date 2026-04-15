@@ -1943,6 +1943,7 @@ function VendorOverview({ vendor, orders }) {
               fontSize: 15,
               marginBottom: 16,
             }}
+        
           >
             Shop Info
           </div>

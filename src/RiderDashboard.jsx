@@ -1,7 +1,6 @@
-import { use, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { auth, db } from "./lib/firebase";
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
@@ -20,7 +19,10 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { listenForMessages, requestNotificationPermission } from "./notifications";
+import {
+  listenForMessages,
+  requestNotificationPermission,
+} from "./notifications";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const RD_CSS = `
@@ -51,6 +53,20 @@ const RD_CSS = `
   --font-head: 'Syne', sans-serif;
 }
 
+html, body, #root {
+  width: 100%;
+  min-height: 100%;
+}
+
+img, video {
+  max-width: 100%;
+  height: auto;
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
 /* Root */
 .rd-root {
   min-height: 100vh;
@@ -71,6 +87,9 @@ const RD_CSS = `
   position: fixed;
   height: 100vh;
   overflow-y: auto;
+  top: 0;
+  left: 0;
+  z-index: 1100;
 }
 
 .rd-sidebar-top {
@@ -83,6 +102,7 @@ const RD_CSS = `
   font-size: 17px;
   font-weight: 800;
   margin-top: 10px;
+  line-height: 1.3;
 }
 
 .rd-online-toggle {
@@ -198,6 +218,50 @@ const RD_CSS = `
   to { transform: scale(1); }
 }
 
+/* Mobile sidebar controls */
+.rd-menu-btn {
+  display: none;
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 1200;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 22px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.rd-close-btn {
+  display: none;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.rd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+  z-index: 1050;
+}
+
+.rd-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Main */
 .rd-main {
   margin-left: 230px;
@@ -205,6 +269,7 @@ const RD_CSS = `
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .rd-topbar {
@@ -217,6 +282,7 @@ const RD_CSS = `
   position: sticky;
   top: 0;
   z-index: 10;
+  gap: 16px;
 }
 
 .rd-page-title {
@@ -234,12 +300,13 @@ const RD_CSS = `
 .rd-content {
   padding: 24px 28px;
   flex: 1;
+  min-width: 0;
 }
 
 /* Stats */
 .rd-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -249,6 +316,7 @@ const RD_CSS = `
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 18px;
+  min-width: 0;
 }
 
 .rd-stat-label {
@@ -264,6 +332,14 @@ const RD_CSS = `
   font-family: var(--font-head);
   font-size: 26px;
   font-weight: 800;
+  word-break: break-word;
+}
+
+.rd-earnings-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
 }
 
 /* Order cards */
@@ -279,6 +355,7 @@ const RD_CSS = `
   border-radius: 16px;
   overflow: hidden;
   transition: transform 0.15s;
+  min-width: 0;
 }
 
 .rd-order-card:hover {
@@ -301,6 +378,7 @@ const RD_CSS = `
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   border-bottom: 1px solid var(--border);
   background: var(--surface2);
 }
@@ -359,6 +437,7 @@ const RD_CSS = `
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .rd-route-point {
@@ -380,7 +459,9 @@ const RD_CSS = `
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   border-top: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 
 .rd-earning {
@@ -436,6 +517,7 @@ const RD_CSS = `
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  text-transform: capitalize;
 }
 
 .rd-badge-available {
@@ -490,11 +572,13 @@ const RD_CSS = `
   font-weight: 800;
   color: #fff;
   margin-top: 6px;
+  word-break: break-word;
 }
 
 .rd-earnings-row {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
   font-size: 13px;
@@ -793,12 +877,13 @@ const RD_CSS = `
   padding: 12px 18px;
   font-size: 14px;
   font-weight: 500;
-  z-index: 999;
+  z-index: 1300;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   gap: 8px;
   animation: toastIn 0.3s ease both;
+  max-width: calc(100vw - 24px);
 }
 
 @keyframes toastIn {
@@ -832,6 +917,77 @@ const RD_CSS = `
   border-color: rgba(124, 58, 237, 0.3);
 }
 
+@media (max-width: 1024px) {
+  .rd-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rd-earnings-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .rd-root {
+    display: block;
+  }
+
+  .rd-menu-btn {
+    display: flex;
+  }
+
+  .rd-close-btn {
+    display: inline-block;
+  }
+
+  .rd-sidebar {
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+  }
+
+  .rd-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .rd-main {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .rd-topbar {
+    padding: 16px 16px 16px 68px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rd-content {
+    padding: 16px;
+  }
+
+  .rd-stats,
+  .rd-orders-grid,
+  .rd-row {
+    grid-template-columns: 1fr;
+  }
+
+  .rd-login-card,
+  .rd-status-card {
+    padding: 24px;
+  }
+
+  .rd-toast {
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+  }
+
+  .rd-earnings-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 5px;
 }
@@ -842,7 +998,7 @@ const RD_CSS = `
 }
 `;
 
-const VEHICLES = [ "Motorcycle (Bike)", "Tricycle (Keke)", "Mini Van"];
+const VEHICLES = ["Motorcycle (Bike)", "Tricycle (Keke)", "Mini Van"];
 const BANKS = [
   "Access Bank",
   "GTBank",
@@ -1576,6 +1732,7 @@ function AvailableOrdersPage({ rider, showToast, isOnline }) {
               style={{
                 display: "flex",
                 gap: 12,
+                flexWrap: "wrap",
                 fontSize: 12,
                 color: "var(--muted)",
                 paddingTop: 4,
@@ -1798,12 +1955,14 @@ function EarningsPage({ riderId }) {
   const today = new Date();
 
   const todayDeliveries = deliveries.filter((delivery) => {
-    const date = delivery.deliveredAt?.toDate?.() || delivery.createdAt?.toDate?.();
+    const date =
+      delivery.deliveredAt?.toDate?.() || delivery.createdAt?.toDate?.();
     return date && date.toDateString() === today.toDateString();
   });
 
   const weekDeliveries = deliveries.filter((delivery) => {
-    const date = delivery.deliveredAt?.toDate?.() || delivery.createdAt?.toDate?.();
+    const date =
+      delivery.deliveredAt?.toDate?.() || delivery.createdAt?.toDate?.();
     if (!date) return false;
 
     const diff = (today - date) / (1000 * 60 * 60 * 24);
@@ -1840,14 +1999,7 @@ function EarningsPage({ riderId }) {
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 12,
-          marginBottom: 24,
-        }}
-      >
+      <div className="rd-earnings-stats-grid">
         {[
           {
             label: "Today",
@@ -1922,6 +2074,7 @@ function EarningsPage({ riderId }) {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
+                gap: 12,
                 alignItems: "center",
                 padding: "12px 20px",
                 borderBottom: "1px solid var(--border)",
@@ -2131,6 +2284,7 @@ export default function RiderDashboard() {
   const [page, setPage] = useState("available");
   const [isOnline, setIsOnline] = useState(false);
   const [toast, setToast] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const showToast = (msg, color = "var(--green)") => {
     setToast({ msg, color });
@@ -2139,11 +2293,11 @@ export default function RiderDashboard() {
 
   useEffect(() => {
     if (rider?.uid) {
-        requestNotificationPermission(rider.uid, "rider");
-        const unsub = listenForMessages((notif) => showToast(notif.title));
-        return unsub;
+      requestNotificationPermission(rider.uid, "rider");
+      const unsub = listenForMessages((notif) => showToast(notif.title));
+      return unsub;
     }
-    }, [rider]);
+  }, [rider?.uid]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -2364,31 +2518,61 @@ export default function RiderDashboard() {
     <div className="rd-root">
       <style>{RD_CSS}</style>
 
-      <div className="rd-sidebar">
+      <button
+        className="rd-menu-btn"
+        onClick={() => setSidebarOpen(true)}
+        aria-label="Open menu"
+      >
+        ☰
+      </button>
+
+      <div
+        className={`rd-overlay ${sidebarOpen ? "show" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <div className={`rd-sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="rd-sidebar-top">
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: "linear-gradient(135deg,var(--rider),var(--rider2))",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 800,
-                color: "#fff",
-                fontSize: 15,
-              }}
-            >
-              P
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: "linear-gradient(135deg,var(--rider),var(--rider2))",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 800,
+                  color: "#fff",
+                  fontSize: 15,
+                }}
+              >
+                P
+              </div>
+
+              <div
+                style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600 }}
+              >
+                PADI Rider
+              </div>
             </div>
 
-            <div
-              style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600 }}
+            <button
+              className="rd-close-btn"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close menu"
             >
-              PADI Rider
-            </div>
+              ✕
+            </button>
           </div>
 
           <div className="rd-rider-name">{rider.name}</div>
@@ -2416,7 +2600,10 @@ export default function RiderDashboard() {
             <div
               key={item.key}
               className={`rd-nav-item ${page === item.key ? "active" : ""}`}
-              onClick={() => setPage(item.key)}
+              onClick={() => {
+                setPage(item.key);
+                setSidebarOpen(false);
+              }}
             >
               <span className="rd-nav-icon">{item.icon}</span>
               <span>{item.label}</span>

@@ -1,27 +1,17 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import {
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
-  updateProfile,
 } from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  setDoc,
-  serverTimestamp,
-  collection,
-  query,
-  where,
-  getDocs,
-  limit,
-} from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "./firebase";
 
 const AuthContext = createContext(null);
+
+const API = "http://localhost:5000/api/auth";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -29,47 +19,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
-  const normalizeEmail = (email) => email.trim().toLowerCase();
-
-  const findAccountByEmail = async (email) => {
-    const normalizedEmail = normalizeEmail(email);
-
-    const collectionsToCheck = [
-      { name: "vendors", role: "vendor" },
-      { name: "riders", role: "rider" },
-      { name: "users", role: "student" },
-    ];
-
-    for (const item of collectionsToCheck) {
-      const q = query(
-        collection(db, item.name),
-        where("email", "==", normalizedEmail),
-        limit(1)
-      );
-
-      const snap = await getDocs(q);
-
-      if (!snap.empty) {
-        const foundDoc = snap.docs[0];
-        return {
-          exists: true,
-          role: item.role,
-          collection: item.name,
-          uid: foundDoc.id,
-          data: foundDoc.data(),
-        };
-      }
-    }
-
-    return {
-      exists: false,
-      role: null,
-      collection: null,
-      uid: null,
-      data: null,
-    };
-  };
+  const normalizeEmail = (email = "") => email.trim().toLowerCase();
 
   const resolveProfile = async (firebaseUser) => {
     if (!firebaseUser) return null;
@@ -77,37 +27,25 @@ export function AuthProvider({ children }) {
     const { uid, displayName, email } = firebaseUser;
 
     try {
+      const userSnap = await getDoc(doc(db, "users", uid));
+      if (userSnap.exists()) {
+        return { ...userSnap.data(), role: "student", uid };
+      }
+
       const vendorSnap = await getDoc(doc(db, "vendors", uid));
       if (vendorSnap.exists()) {
-        return {
-          ...vendorSnap.data(),
-          role: "vendor",
-          uid,
-        };
+        return { ...vendorSnap.data(), role: "vendor", uid };
       }
 
       const riderSnap = await getDoc(doc(db, "riders", uid));
       if (riderSnap.exists()) {
-        return {
-          ...riderSnap.data(),
-          role: "rider",
-          uid,
-        };
-      }
-
-      const userSnap = await getDoc(doc(db, "users", uid));
-      if (userSnap.exists()) {
-        return {
-          ...userSnap.data(),
-          role: "student",
-          uid,
-        };
+        return { ...riderSnap.data(), role: "rider", uid };
       }
 
       return {
         uid,
         name: displayName || "",
-        email: email ? normalizeEmail(email) : "",
+        email: normalizeEmail(email),
         role: "student",
       };
     } catch (err) {
@@ -115,13 +53,12 @@ export function AuthProvider({ children }) {
       return {
         uid,
         name: displayName || "",
-        email: email ? normalizeEmail(email) : "",
+        email: normalizeEmail(email),
         role: "student",
       };
     }
   };
 
-  // ── Auth state watcher ─────────────────────────────────────────────────────
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
@@ -136,17 +73,11 @@ export function AuthProvider({ children }) {
       setUser(firebaseUser);
 
       try {
-        await firebaseUser.getIdToken(true);
         const resolved = await resolveProfile(firebaseUser);
         setProfile(resolved);
       } catch (err) {
-        console.error("Auth state profile error:", err);
-        setProfile({
-          uid: firebaseUser.uid,
-          name: firebaseUser.displayName || "",
-          email: firebaseUser.email ? normalizeEmail(firebaseUser.email) : "",
-          role: "student",
-        });
+        console.error("Auth listener profile error:", err);
+        setProfile(null);
       } finally {
         setLoading(false);
       }
@@ -155,118 +86,128 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  // ── Login (student portal only) ────────────────────────────────────────────
-  const login = async (email, password) => {
-  setError(null);
-  try {
-    const result = await signInWithEmailAndPassword(auth, email, password);
-    const resolved = await resolveProfile(result.user);
-
-    // Instead of signing out, redirect to correct portal
-    if (resolved.role === "rider") {
-      window.location.href = "/rider";
-      return { success: true };
-    }
-
-    if (resolved.role === "vendor") {
-      window.location.href = "/vendor";
-      return { success: true };
-    }
-
-    setProfile(resolved);
-    return { success: true };
-  } catch (err) {
-    let message = "Login failed. Please check your credentials.";
-    switch (err.code) {
-      case "auth/user-not-found": message = "No account found with this email."; break;
-      case "auth/wrong-password": message = "Incorrect password."; break;
-      case "auth/too-many-requests": message = "Too many attempts. Try again later."; break;
-      case "auth/invalid-credential": message = "Invalid email or password."; break;
-    }
-    setError(message);
-    return { success: false, error: message };
-  }
-};
-
-  // ── Register (students only, with cross-role protection) ──────────────────
-  const register = async (name, email, password, phone = "") => {
+  const requestOTP = async (email, name) => {
     setError(null);
 
-    const normalizedEmail = normalizeEmail(email);
-
     try {
-      // Check if this email already exists in ANY role collection
-      const existingAccount = await findAccountByEmail(normalizedEmail);
+      const res = await fetch(`${API}/send-email-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizeEmail(email), name }),
+      });
 
-      if (existingAccount.exists) {
-        let message = "This email is already in use.";
+      const data = await res.json();
 
-        if (existingAccount.role === "vendor") {
-          message =
-            "This email is already registered as a vendor. Please sign in through the Vendor portal.";
-        } else if (existingAccount.role === "rider") {
-          message =
-            "This email is already registered as a rider. Please sign in through the Rider portal.";
-        } else if (existingAccount.role === "student") {
-          message =
-            "A student account with this email already exists. Please sign in instead.";
-        }
-
-        setError(message);
-        return { success: false, error: message };
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send code");
       }
 
-      const result = await createUserWithEmailAndPassword(
-        auth,
-        normalizedEmail,
-        password
-      );
-
-      await updateProfile(result.user, { displayName: name });
-
-      await setDoc(doc(db, "users", result.user.uid), {
-        uid: result.user.uid,
-        name,
-        email: normalizedEmail,
-        phone,
-        role: "student",
-        walletBalance: 0,
-        createdAt: serverTimestamp(),
-      });
-
-      setProfile({
-        uid: result.user.uid,
-        name,
-        email: normalizedEmail,
-        phone,
-        role: "student",
-        walletBalance: 0,
-      });
-
-      return { success: true };
+      return { success: true, message: data.message };
     } catch (err) {
-      let message = "Registration failed.";
-
-      switch (err.code) {
-        case "auth/email-already-in-use":
-          message = "An account with this email already exists.";
-          break;
-        case "auth/invalid-email":
-          message = "Please enter a valid email address.";
-          break;
-        case "auth/weak-password":
-          message = "Password should be at least 6 characters.";
-          break;
-        default:
-          message = err.message || message;
-      }
-
+      const message = err.message || "Failed to send code";
       setError(message);
       return { success: false, error: message };
     }
   };
 
-  // ── Google sign-in (student portal only, with cross-role protection) ──────
+  const confirmOTP = async (email, code) => {
+    setError(null);
+
+    try {
+      const res = await fetch(`${API}/verify-email-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: normalizeEmail(email),
+          code,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid code");
+      }
+
+      return { success: true, message: data.message };
+    } catch (err) {
+      const message = err.message || "Invalid code";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const register = async (name, email, password, phone = "", university = "") => {
+    setError(null);
+
+    try {
+      const res = await fetch(`${API}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email: normalizeEmail(email),
+          password,
+          phone,
+          university,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Registration failed");
+      }
+
+      // sign in immediately after backend account creation
+      const loginResult = await signInWithEmailAndPassword(
+        auth,
+        normalizeEmail(email),
+        password
+      );
+
+      const resolved = await resolveProfile(loginResult.user);
+      setProfile(resolved);
+
+      return { success: true, data };
+    } catch (err) {
+      const message = err.message || "Registration failed";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const login = async (email, password) => {
+    setError(null);
+
+    try {
+      const result = await signInWithEmailAndPassword(
+        auth,
+        normalizeEmail(email),
+        password
+      );
+
+      const resolved = await resolveProfile(result.user);
+
+      if (resolved?.role === "vendor") {
+        window.location.href = "/vendor";
+        return { success: true };
+      }
+
+      if (resolved?.role === "rider") {
+        window.location.href = "/rider";
+        return { success: true };
+      }
+
+      setProfile(resolved);
+      return { success: true };
+    } catch (err) {
+      const message = "Invalid email or password";
+      setError(message);
+      return { success: false, error: message };
+    }
+  };
+
   const loginWithGoogle = async () => {
     setError(null);
 
@@ -274,86 +215,36 @@ export function AuthProvider({ children }) {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
 
-      const firebaseUser = result.user;
-      const normalizedEmail = firebaseUser.email
-        ? normalizeEmail(firebaseUser.email)
-        : "";
+      const userRef = doc(db, "users", result.user.uid);
+      const snap = await getDoc(userRef);
 
-      // First check by UID
-      const resolved = await resolveProfile(firebaseUser);
-
-      if (resolved.role === "rider") {
-  window.location.href = "/rider";
-  return { success: true };
-}
-
-if (resolved.role === "vendor") {
-  window.location.href = "/vendor";
-  return { success: true };
-}
-
-      // Then check if same email exists under another role
-      const existingAccount = await findAccountByEmail(normalizedEmail);
-
-      if (
-        existingAccount.exists &&
-        existingAccount.uid !== firebaseUser.uid &&
-        existingAccount.role !== "student"
-      ) {
-        await signOut(auth);
-
-        const message =
-          existingAccount.role === "vendor"
-            ? "This Google email is already linked to an account."
-            : "This Google email is already linked to an account."
-        setError(message);
-        return { success: false, error: message };
-      }
-
-      const userRef = doc(db, "users", firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (!userSnap.exists()) {
+      if (!snap.exists()) {
         await setDoc(userRef, {
-          uid: firebaseUser.uid,
-          name: firebaseUser.displayName || "",
-          email: normalizedEmail,
+          uid: result.user.uid,
+          name: result.user.displayName || "Student",
+          email: normalizeEmail(result.user.email || ""),
           phone: "",
+          university: "",
           role: "student",
           walletBalance: 0,
+          emailVerifiedByCode: true,
+          phoneVerified: false,
           createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
       }
 
-      setProfile({
-        uid: firebaseUser.uid,
-        name: firebaseUser.displayName || "",
-        email: normalizedEmail,
-        phone: "",
-        role: "student",
-        walletBalance: userSnap.exists()
-          ? userSnap.data().walletBalance || 0
-          : 0,
-      });
+      const resolved = await resolveProfile(result.user);
+      setProfile(resolved);
 
       return { success: true };
     } catch (err) {
-      let message = "Google sign-in failed.";
-
-      if (err.code === "auth/popup-closed-by-user") {
-        message = "Google sign-in was cancelled.";
-      } else if (err.code === "auth/popup-blocked") {
-        message = "Popup was blocked. Please allow popups and try again.";
-      } else if (err.message) {
-        message = err.message;
-      }
-
+      const message = "Google sign-in failed";
       setError(message);
       return { success: false, error: message };
     }
   };
 
-  // ── Logout ─────────────────────────────────────────────────────────────────
   const logout = async () => {
     try {
       await signOut(auth);
@@ -364,19 +255,25 @@ if (resolved.role === "vendor") {
     }
   };
 
-  const value = {
-    user,
-    profile,
-    loading,
-    error,
-    setError,
-    register,
-    login,
-    loginWithGoogle,
-    logout,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        error,
+        setError,
+        requestOTP,
+        confirmOTP,
+        register,
+        login,
+        loginWithGoogle,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

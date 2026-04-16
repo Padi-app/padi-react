@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { sendEmailVerification } from "firebase/auth";
 import { useAuth } from "./lib/AuthContext";
 import { requestNotificationPermission, listenForMessages } from "./notifications";
 import { ChatScreen, PadiBotFloat, PadiBotOverlay } from "./PadiChat";
@@ -42,7 +43,7 @@ return (
 <div className="splash">
 <div className="splash-logo">P</div>
 <div className="splash-name">PADI</div>
-<div style={{ color: "var(-muted)", fontSize: 15 }}>Your campus super app</div>
+<div style={{ color: "var(--muted)", fontSize: 15 }}>Your campus super app</div>
 <div className="splash-pulse" />
 </div>
 );
@@ -59,10 +60,10 @@ return (
 <div className="home-header">
 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 <div>
-<div style={{ fontSize: 11, color: "var(-muted)", letterSpacing: .5 }}>Good afternoon</div>
+<div style={{ fontSize: 11, color: "var(--muted)", letterSpacing: .5 }}>Good afternoon</div>
 <div className="h2" style={{ marginTop: 2 }}>{firstName}</div>
 </div>
-<div style={{ width: 40, height: 40, borderRadius: 12, background: "var(-surface2)", border: "1px solid var(-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", position: "relative" }}>
+<div style={{ width: 40, height: 40, borderRadius: 12, background: "var(-surface2)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", position: "relative" }}>
 🔔
 <div style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: "var(-brand)", border: "2px solid var(-bg)" }} />
 </div>
@@ -146,7 +147,7 @@ return (
 <div className="listing-header">
 <div style={{ flex: 1 }}>
 <div className="h3">Food & Groceries</div>
-<div style={{ color: "var(-muted)", fontSize: 11, marginTop: 2 }}>
+<div style={{ color: "var(--muted)", fontSize: 11, marginTop: 2 }}>
 {loading ? "Loading..." : `${foods.length} items available`}
 </div>
 </div>
@@ -254,7 +255,17 @@ return (
     </div>
 
     <div style={{ height: 16 }} />
-    <button className="btn btn-primary" onClick={() => setShowPayment(true)} disabled={ordering}>
+    <button
+  className="btn btn-primary"
+  onClick={() => {
+    if (!phoneVerified || total > HIGH_VALUE) {
+      showToast("Phone verification required");
+      return;
+    }
+    setShowPayment(true);
+  }}
+  disabled={ordering}
+>
       {ordering ? "Placing Order..." : `Proceed to Payment  ₦${total.toLocaleString()}`}
     </button>
     <div style={{ height: 8 }} />
@@ -270,7 +281,10 @@ return (
         setOrdering(true);
         try {
           await placeRealOrder({
-            student: user,
+            student: {
+              uid: user.uid,
+              email: user.email,
+            },
             cart,
             paymentMethod,
             deliveryAddress: "Campus Hostel",
@@ -302,13 +316,13 @@ return (
 <div className="listing-header">
 <div style={{ flex: 1 }}>
 <div className="h3">Live Tracking</div>
-<div style={{ color: "var(-muted)", fontSize: 11, marginTop: 2 }}>Order #PADI-2847</div>
+<div style={{ color: "var(--muted)", fontSize: 11, marginTop: 2 }}>Order #PADI-2847</div>
 </div>
 </div>
 <div className="track-map-mock">
 <div className="rider-dot" />
-<div style={{ fontSize: 12, color: "var(-muted)", marginTop: 8 }}>Rider is on the way</div>
-<div style={{ position: "absolute", top: 14, right: 14, background: "var(-bg)", borderRadius: 10, padding: "6px 12px", border: "1px solid var(-border)", fontSize: 12, fontWeight: 600 }}>~5 min away</div>
+<div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>Rider is on the way</div>
+<div style={{ position: "absolute", top: 14, right: 14, background: "var(-bg)", borderRadius: 10, padding: "6px 12px", border: "1px solid var(--border)", fontSize: 12, fontWeight: 600 }}>~5 min away</div>
 </div>
 <div style={{ padding: "20px 20px 0" }}>
 <div className="label" style={{ marginBottom: 16 }}>Order Progress</div>
@@ -319,7 +333,7 @@ return (
 {i < TRACK_STEPS.length - 1 && <div className={`step-line ${i < step ? "step-line-done" : "step-line-pending"}`} />}
 </div>
 <div style={{ flex: 1 }}>
-<div className="step-title" style={{ color: i > step ? "var(-muted)" : "var(-text)" }}>{s.label}</div>
+<div className="step-title" style={{ color: i > step ? "var(--muted)" : "var(-text)" }}>{s.label}</div>
 <div className="step-sub">{s.sub}</div>
 </div>
 {i < step && <span style={{ color: "var(-green)", fontSize: 13, fontWeight: 700 }}>✓</span>}
@@ -342,7 +356,7 @@ return (
 <div className="profile-hero">
 <div className="profile-avatar">{initials}</div>
 <div style={{ fontFamily: "var(-font-head)", fontSize: 22, fontWeight: 800 }}>{name}</div>
-<div style={{ fontSize: 14, color: "var(-muted)", marginTop: 4 }}>{email}</div>
+<div style={{ fontSize: 14, color: "var(--muted)", marginTop: 4 }}>{email}</div>
 <div style={{ marginTop: 12 }}><span className="chip active">Student</span></div>
 </div>
 <div className="profile-stats">
@@ -397,6 +411,12 @@ export default function PADIApp() {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
+
+  useEffect(() => {
+    if (user && !user.emailVerified) {
+      showToast("Verify your email before using PADI");
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user && profile?.role === "student") {
@@ -473,6 +493,42 @@ export default function PADIApp() {
     );
   }
 
+  if (user && !user.emailVerified) {
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="app">
+        <div className="empty">
+          <div className="empty-icon">📩</div>
+          <div className="empty-text">Verify Your Email</div>
+          <div className="empty-sub">
+            Check your inbox and verify your email to continue
+          </div>
+
+          <button
+            className="btn btn-primary"
+            style={{ marginTop: 20 }}
+            onClick={async () => {
+              await sendEmailVerification(user);
+              showToast("Verification email sent again");
+            }}
+          >
+            Resend Email
+          </button>
+
+          <button
+            className="btn btn-ghost"
+            style={{ marginTop: 10 }}
+            onClick={() => window.location.reload()}
+          >
+            I’ve Verified
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
   if (profile?.role === "vendor") {
     window.location.href = "/vendor";
     return null;
@@ -482,6 +538,27 @@ export default function PADIApp() {
     window.location.href = "/rider";
     return null;
   }
+
+  if (!profile?.university) {
+  return (
+    <div className="app">
+      <div className="empty">
+        <div className="empty-icon">🎓</div>
+        <div className="empty-text">Select Your University</div>
+        <div className="empty-sub">
+          This helps us show vendors near you
+        </div>
+
+        <button
+          className="btn btn-primary"
+          onClick={() => showToast("University selection coming")}
+        >
+          Choose University
+        </button>
+      </div>
+    </div>
+  );
+}
 
   return (
     <div className="app-shell">

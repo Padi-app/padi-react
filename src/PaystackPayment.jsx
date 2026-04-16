@@ -3,7 +3,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from "react";
-import { db } from "./lib/firebase";
+import { auth, db } from "./lib/firebase";
+import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import {
   addDoc,
   collection,
@@ -18,7 +19,7 @@ import {
   where,
 } from "firebase/firestore";
 
-const PAYSTACK_PUBLIC_KEY = "pk_test_c8df1ac494a00d13ac091e6b7107d8eaf4787b44";
+const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
 
 const PAY_CSS = `
 .pay-modal-overlay {
@@ -348,6 +349,60 @@ const PAY_CSS = `
   color: #fff;
   margin-top: 4px;
 }
+
+.otp-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.otp-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.otp-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.otp-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  margin-bottom: 10px;
+}
+
+.otp-input:focus {
+  border-color: var(--brand);
+}
+
+.otp-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.otp-note {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+#recaptcha-container {
+  margin-top: 12px;
+}
+
 `;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -642,6 +697,15 @@ export function CheckoutPaymentModal({
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [checkoutProfile, setCheckoutProfile] = useState(null);
+
+const HIGH_VALUE_THRESHOLD = 10000; 
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -653,10 +717,92 @@ export function CheckoutPaymentModal({
     });
   }, [user?.uid]);
 
+  useEffect(() => {
+  if (!user?.uid) return;
+
+  getDoc(doc(db, "users", user.uid)).then((snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      setCheckoutProfile(data);
+      setPhoneNumber(data.phoneNumber || data.phone || "");
+      setOtpVerified(Boolean(data.phoneVerified));
+    }
+  });
+}, [user?.uid]);
+
   const DELIVERY_FEE = 300;
   const PROMO = 150;
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const orderTotal = subtotal + DELIVERY_FEE - PROMO;
+  const requiresOTP =
+    !checkoutProfile?.phoneVerified || orderTotal >= HIGH_VALUE_THRESHOLD;
+  const setupRecaptcha = () => {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(
+       auth,
+      "recaptcha-container",
+      {
+        size: "invisible",
+        callback: () => {},
+      }
+    );
+  }
+  
+
+  return window.recaptchaVerifier;
+};
+  const handleSendOtp = async () => {
+    if (!phoneNumber) {
+      alert("Please add your phone number first.");
+      return;
+    }
+
+    try {
+      setOtpLoading(true);
+
+      const appVerifier = setupRecaptcha();
+      const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+
+      setConfirmationResult(result);
+      setOtpSent(true);
+    } catch (error) {
+      console.error("OTP send failed:", error);
+      alert("Failed to send OTP. Check the number format.");
+    } finally {
+      setOtpLoading(false);
+    }
+};
+
+  const handleVerifyOtp = async () => {
+    if (!confirmationResult || !otpCode) return;
+
+    try {
+      setOtpLoading(true);
+
+      await confirmationResult.confirm(otpCode);
+
+    await updateDoc(doc(db, "users", user.uid), {
+      phoneNumber,
+      phoneVerified: true,
+      phoneVerifiedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    setOtpVerified(true);
+    setOtpSent(false);
+    setOtpCode("");
+    setCheckoutProfile((prev) => ({
+      ...prev,
+      phoneNumber,
+      phoneVerified: true,
+    }));
+  } catch (error) {
+    console.error("OTP verification failed:", error);
+    alert("Invalid OTP code.");
+  } finally {
+    setOtpLoading(false);
+  }
+};
 
   const PAY_METHODS = [
     {
@@ -789,10 +935,15 @@ export function CheckoutPaymentModal({
   };
 
   const handlePay = () => {
-    if (payMethod === "paystack") handlePaystackPayment();
-    else if (payMethod === "wallet") handleWalletPayment();
-    else if (payMethod === "cash") handleCashPayment();
-  };
+    if (requiresOtp && !otpVerified) {
+      alert("Verify your phone number before checkout.");
+      return;
+    }
+
+  if (payMethod === "paystack") handlePaystackPayment();
+  else if (payMethod === "wallet") handleWalletPayment();
+  else if (payMethod === "cash") handleCashPayment();
+};
 
   return (
     <div
@@ -824,6 +975,71 @@ export function CheckoutPaymentModal({
           <>
             <div className="pay-modal-title">Complete Payment</div>
             <div className="pay-modal-sub">Choose how you want to pay</div>
+            {requiresOtp && !otpVerified && (
+  <div className="otp-box">
+    <div className="otp-title">Phone Verification Required 📱</div>
+    <div className="otp-sub">
+      Verify your phone number before checkout.
+      {!checkoutProfile?.phoneVerified && " This is required for your first checkout."}
+      {orderTotal >= HIGH_VALUE_THRESHOLD && " This order is marked as high value."}
+    </div>
+
+    <input
+      className="otp-input"
+      placeholder="Phone number e.g. +2348012345678"
+      value={phoneNumber}
+      onChange={(e) => setPhoneNumber(e.target.value)}
+    />
+
+    {!otpSent ? (
+      <div className="otp-actions">
+        <button
+          className="pay-btn"
+          type="button"
+          onClick={handleSendOtp}
+          disabled={otpLoading || !phoneNumber}
+        >
+          {otpLoading ? "Sending OTP..." : "Send OTP"}
+        </button>
+      </div>
+    ) : (
+      <>
+        <input
+          className="otp-input"
+          placeholder="Enter OTP code"
+          value={otpCode}
+          onChange={(e) => setOtpCode(e.target.value)}
+        />
+
+        <div className="otp-actions">
+          <button
+            className="pay-btn"
+            type="button"
+            onClick={handleVerifyOtp}
+            disabled={otpLoading || !otpCode}
+          >
+            {otpLoading ? "Verifying..." : "Verify OTP"}
+          </button>
+
+          <button
+            className="pay-btn-ghost"
+            type="button"
+            onClick={handleSendOtp}
+            disabled={otpLoading}
+          >
+            Resend OTP
+          </button>
+        </div>
+      </>
+    )}
+
+    <div className="otp-note">
+      Use international format for now, e.g. +2348012345678
+    </div>
+
+    <div id="recaptcha-container" />
+  </div>
+)}
 
             <div className="pay-summary">
               {cart.map((item, index) => (
@@ -894,7 +1110,11 @@ export function CheckoutPaymentModal({
               ))}
             </div>
 
-            <button className="pay-btn" onClick={handlePay} disabled={loading}>
+            <button
+               className="pay-btn"
+               onClick={handlePay}
+               disabled={loading || (requiresOtp && !otpVerified)}
+        >
               {loading
                 ? "Processing..."
                 : payMethod === "cash"

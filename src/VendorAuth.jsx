@@ -1,5 +1,5 @@
 import { useState } from "react";
-
+import { NIGERIAN_UNIVERSITIES } from "./lib/universities";
 // ─── CSS ────────────────────────────────────────────────────────────────────
 const VENDOR_CSS = `
 .v-toggle { display: flex; background: var(--surface2); border-radius: 14px; padding: 4px; margin-bottom: 20px; }
@@ -80,10 +80,16 @@ function StepBar({ step }) {
       {steps.map((s, i) => (
         <div key={s} style={{ display: "contents" }}>
           <div className="v-step">
-            <div className={`v-step-dot ${i < step ? "done" : i === step ? "active" : ""}`}>
+            <div
+              className={`v-step-dot ${
+                i < step ? "done" : i === step ? "active" : ""
+              }`}
+            >
               {i < step ? "✓" : i + 1}
             </div>
-            <div className={`v-step-label ${i === step ? "active" : ""}`}>{s}</div>
+            <div className={`v-step-label ${i === step ? "active" : ""}`}>
+              {s}
+            </div>
           </div>
 
           {i < steps.length - 1 && (
@@ -95,13 +101,14 @@ function StepBar({ step }) {
   );
 }
 
-// ─── Step 1: Business Info ────────────────────────────────────────────────────
+// ─── Step 1: Business Info ───────────────────────────────────────────────────
 function Step1({ data, setData, onNext }) {
   const valid =
     data.businessName &&
     data.category &&
     data.phone &&
     data.location &&
+    data.university &&
     data.description;
 
   return (
@@ -180,6 +187,26 @@ function Step1({ data, setData, onNext }) {
       </div>
 
       <div className="input-wrap">
+  <div className="input-label">University *</div>
+
+  <select
+    value={data.university}
+    onChange={(e) =>
+      setData({ ...data, university: e.target.value })
+    }
+    className="input"
+  >
+    <option value="">Select your university</option>
+
+    {NIGERIAN_UNIVERSITIES.map((uni) => (
+      <option key={uni.name} value={uni.name}>
+        {uni.shortName ? `${uni.shortName} — ${uni.name}` : uni.name}
+      </option>
+    ))}
+  </select>
+</div>
+
+      <div className="input-wrap">
         <div className="input-label">Opening Hours</div>
         <div className="v-row">
           <input
@@ -244,7 +271,7 @@ function Step1({ data, setData, onNext }) {
   );
 }
 
-// ─── Step 2: Bank Details ─────────────────────────────────────────────────────
+// ─── Step 2: Bank Details ────────────────────────────────────────────────────
 function Step2({ data, setData, onNext, onBack }) {
   const valid = data.bankName && data.accountNumber && data.accountName;
 
@@ -350,7 +377,7 @@ function Step2({ data, setData, onNext, onBack }) {
   );
 }
 
-// ─── Step 3: Menu Items ───────────────────────────────────────────────────────
+// ─── Step 3: Menu Items ──────────────────────────────────────────────────────
 function Step3({ data, setData, onSubmit, onBack, loading }) {
   const [newItem, setNewItem] = useState({
     name: "",
@@ -514,7 +541,7 @@ function Step3({ data, setData, onSubmit, onBack, loading }) {
   );
 }
 
-// ─── Pending Approval Screen ──────────────────────────────────────────────────
+// ─── Pending Approval Screen ─────────────────────────────────────────────────
 export function VendorPendingScreen({ vendorName }) {
   return (
     <div
@@ -596,6 +623,7 @@ export function VendorRegisterForm({ onSuccess, onSwitchToLogin }) {
     phone: "",
     whatsapp: "",
     location: "",
+    university: "",
     description: "",
     opensAt: "",
     closesAt: "",
@@ -613,17 +641,31 @@ export function VendorRegisterForm({ onSuccess, onSwitchToLogin }) {
       return;
     }
 
+    if (!data.university) {
+      setError("Please select your university.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const { createUserWithEmailAndPassword, updateProfile } = await import("firebase/auth");
-      const { auth } = await import("./lib/firebase");
-      const { db } = await import("./lib/firebase");
-      const { doc, setDoc, serverTimestamp, collection, addDoc } = await import("firebase/firestore");
+      const { createUserWithEmailAndPassword, updateProfile } = await import(
+        "firebase/auth"
+      );
+      const { auth, db } = await import("./lib/firebase");
+      const { doc, setDoc, serverTimestamp, collection, addDoc } =
+        await import("firebase/firestore");
 
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(result.user, { displayName: data.businessName });
+      const result = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      await updateProfile(result.user, {
+        displayName: data.businessName,
+      });
 
       await setDoc(doc(db, "vendors", result.user.uid), {
         uid: result.user.uid,
@@ -649,9 +691,9 @@ export function VendorRegisterForm({ onSuccess, onSwitchToLogin }) {
       onSuccess({ businessName: data.businessName });
     } catch (err) {
       setError(err.message || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -666,7 +708,9 @@ export function VendorRegisterForm({ onSuccess, onSwitchToLogin }) {
       <style>{VENDOR_CSS}</style>
 
       <div className="auth-hero" style={{ paddingBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}
+        >
           <div
             style={{
               width: 36,
@@ -761,6 +805,7 @@ export function VendorRegisterForm({ onSuccess, onSwitchToLogin }) {
         {step === 0 && (
           <Step1 data={data} setData={setData} onNext={() => setStep(1)} />
         )}
+
         {step === 1 && (
           <Step2
             data={data}
@@ -769,6 +814,7 @@ export function VendorRegisterForm({ onSuccess, onSwitchToLogin }) {
             onBack={() => setStep(0)}
           />
         )}
+
         {step === 2 && (
           <Step3
             data={data}
@@ -789,7 +835,11 @@ export function VendorRegisterForm({ onSuccess, onSwitchToLogin }) {
         >
           Already have a vendor account?{" "}
           <span
-            style={{ color: "var(--brand)", fontWeight: 600, cursor: "pointer" }}
+            style={{
+              color: "var(--brand)",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
             onClick={onSwitchToLogin}
           >
             Sign In
@@ -868,7 +918,9 @@ export function AuthScreenWithVendor({
       <style>{VENDOR_CSS}</style>
 
       <div className="auth-hero">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}
+        >
           <div
             style={{
               width: 36,
@@ -908,7 +960,9 @@ export function AuthScreenWithVendor({
           </div>
 
           <div
-            className={`v-toggle-tab ${mode === "vendor" ? "active vendor" : ""}`}
+            className={`v-toggle-tab ${
+              mode === "vendor" ? "active vendor" : ""
+            }`}
             onClick={() => {
               setMode("vendor");
               setError(null);

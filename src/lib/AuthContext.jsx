@@ -11,7 +11,7 @@ import { auth, db } from "./firebase";
 
 const AuthContext = createContext(null);
 
-const API = "http://localhost:5000/api/auth";
+const API = "http://127.0.0.1:5000/api/auth";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -47,6 +47,7 @@ export function AuthProvider({ children }) {
         name: displayName || "",
         email: normalizeEmail(email),
         role: "student",
+        emailVerifiedByCode: true, // assume true for social logins
       };
     } catch (err) {
       console.error("Profile resolve error:", err);
@@ -55,6 +56,7 @@ export function AuthProvider({ children }) {
         name: displayName || "",
         email: normalizeEmail(email),
         role: "student",
+        emailVerifiedByCode: true,
       };
     }
   };

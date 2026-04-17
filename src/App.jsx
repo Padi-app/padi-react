@@ -493,7 +493,7 @@ export default function PADIApp() {
     );
   }
 
-  if (user && !user.emailVerified) {
+  if (user && !profile?.emailVerifiedByCode) {
   return (
     <>
       <style>{CSS}</style>

@@ -23,6 +23,7 @@ import {
   listenForMessages,
   requestNotificationPermission,
 } from "./notifications";
+import { NIGERIAN_UNIVERSITIES } from "./lib/universities";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const RD_CSS = `
@@ -1052,7 +1053,7 @@ function RiderStep1({
   setPassword,
 }) {
   const valid =
-    data.name && data.phone && data.address && email.trim() && password.trim();
+    data.name && data.phone && data.address && data.university && email.trim() && password.trim();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1108,6 +1109,27 @@ function RiderStep1({
           }
         />
       </div>
+
+      <div className="rd-wrap">
+  <div className="rd-label">University *</div>
+  <select
+    className="rd-select"
+    value={data.university}
+    onChange={(e) =>
+      setData((p) => ({ ...p, university: e.target.value }))
+    }
+  >
+    <option value="">Select your university</option>
+    {NIGERIAN_UNIVERSITIES.map((uni) => (
+      <option
+        key={uni.value || uni.name || uni.shortName}
+        value={uni.value || uni.name}
+      >
+        {uni.label || uni.name}
+      </option>
+    ))}
+  </select>
+</div>
 
       <div className="rd-wrap">
         <div className="rd-label">Date of Birth</div>
@@ -1444,6 +1466,7 @@ export function RiderRegisterForm({ onSuccess }) {
     whatsapp: "",
     address: "",
     dob: "",
+    university: "",
     vehicleType: "",
     plateNumber: "",
     vehicleColor: "",
@@ -2578,6 +2601,9 @@ export default function RiderDashboard() {
           <div className="rd-rider-name">{rider.name}</div>
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
             {rider.vehicleType} · {rider.plateNumber}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+            {rider.university || "University not set"}
           </div>
 
           <div

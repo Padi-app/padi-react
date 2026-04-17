@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "./lib/AuthContext";
 import { VendorRegisterForm } from "./VendorAuth";
 import { RiderRegisterForm } from "./RiderDashboard";
@@ -282,6 +282,7 @@ function StudentSignup() {
   const { register, requestOTP, confirmOTP, error, setError } = useAuth();
 
   const [step, setStep] = useState(0);
+  const [emailVerified, setEmailVerified] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
@@ -290,6 +291,14 @@ function StudentSignup() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
+
+  useEffect(() => {
+  const saved = sessionStorage.getItem("padi_signup_verified_email");
+  if (saved && saved === email.trim().toLowerCase()) {
+    setEmailVerified(true);
+    setStep(2);
+  }
+}, [email]);
 
   const startTimer = () => {
     setTimer(60);
@@ -329,22 +338,27 @@ function StudentSignup() {
   };
 
   const handleVerifyOTP = async () => {
-    if (otp.length !== 6) {
-      setError("Please enter the complete 6-digit code.");
-      return;
-    }
+  if (otp.length !== 6) {
+    setError("Please enter the complete 6-digit code.");
+    return;
+  }
 
-    setLoading(true);
-    setError(null);
+  setLoading(true);
+  setError(null);
 
-    const result = await confirmOTP(email, otp);
+  const result = await confirmOTP(email, otp);
 
-    if (result?.success) {
-      setStep(2);
-    }
+  if (result.success) {
+    setEmailVerified(true);
+    sessionStorage.setItem(
+      "padi_signup_verified_email",
+      email.trim().toLowerCase()
+    );
+    setStep(2);
+  }
 
-    setLoading(false);
-  };
+  setLoading(false);
+};
 
   const handleFinish = async () => {
     if (!university) {
@@ -352,10 +366,20 @@ function StudentSignup() {
       return;
     }
 
+    if (!emailVerified) {
+      setError("Please verify your email before creating your account.");
+      setStep(1);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
-    await register(name, email, pass, phone, university);
+    const result = await register(name, email, pass, phone, university);
+
+    if (result.success) {
+      sessionStorage.removeItem("padi_signup_verified_email");
+   }
 
     setLoading(false);
   };
@@ -753,6 +777,7 @@ export function AuthScreenWithRider({
       }}
     >
       <style>{AUTH_CSS}</style>
+      
 
       <div className="auth-hero">
         <div

@@ -43,6 +43,35 @@ const VENDOR_CSS = `
 .v-pending-steps { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-top: 20px; text-align: left; }
 .v-pending-step { display: flex; gap: 12px; padding: 8px 0; font-size: 13px; align-items: flex-start; }
 .v-pending-step-num { width: 22px; height: 22px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; color: var(--muted); }
+.v-slide-shell {
+  animation: vSlideIn .28s cubic-bezier(.22,1,.36,1);
+  will-change: transform, opacity;
+}
+
+@keyframes vSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(28px) scale(.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+  .v-slide-exit {
+  animation: vSlideOut .22s cubic-bezier(.4,0,.2,1);
+}
+
+@keyframes vSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-24px) scale(.98);
+  }
+}
 `;
 
 const CATEGORIES = [
@@ -611,7 +640,8 @@ export function VendorPendingScreen({ vendorName }) {
 }
 
 // ─── Main Vendor Registration Form ───────────────────────────────────────────
-export function VendorRegisterForm({ onSuccess, onSwitchToLogin }) {
+export function VendorRegisterForm({ onSuccess, onSwitchToLogin, onBack })  {
+  const [isExiting, setIsExiting] = useState(false);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -696,20 +726,63 @@ export function VendorRegisterForm({ onSuccess, onSwitchToLogin }) {
     }
   };
 
-  return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        display: "flex",
-        flexDirection: "column",
-        overflowY: "auto",
-      }}
-    >
+ return (
+  <div
+    style={{
+      minHeight: "100dvh",
+      display: "flex",
+      flexDirection: "column",
+      overflowY: "auto",
+    }}
+  >
+    <div className={`v-slide-shell ${isExiting ? "v-slide-exit" : ""}`}>
       <style>{VENDOR_CSS}</style>
+
+      <div style={{ padding: "16px 20px 0" }}>
+  <button
+    onClick={() => {
+      setIsExiting(true);
+      setTimeout(() => {
+        onBack();
+      }, 220);
+    }}
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      background: "rgba(255,255,255,0.06)",
+      border: "1px solid rgba(255,255,255,0.08)",
+      borderRadius: 999,
+      padding: "8px 14px",
+      cursor: "pointer",
+      backdropFilter: "blur(10px)",
+      color: "white",
+      fontSize: 14,
+      fontWeight: 500,
+      transition: "all .2s ease",
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.transform = "translateX(-2px)";
+      e.currentTarget.style.opacity = "1";
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.transform = "translateX(0)";
+      e.currentTarget.style.opacity = "0.9";
+    }}
+  >
+    <span style={{ fontSize: 16 }}>←</span>
+    <span>Back</span>
+  </button>
+</div>
 
       <div className="auth-hero" style={{ paddingBottom: 24 }}>
         <div
-          style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 16,
+          }}
         >
           <div
             style={{
@@ -847,7 +920,8 @@ export function VendorRegisterForm({ onSuccess, onSwitchToLogin }) {
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
 
 // ─── Updated Auth Screen with Student/Vendor Toggle ──────────────────────────
@@ -902,6 +976,10 @@ export function AuthScreenWithVendor({
       <VendorRegisterForm
         onSuccess={(info) => setVendorPending(info)}
         onSwitchToLogin={() => setTab("login")}
+        onBack={() => {
+          setMode("vendor");
+          setTab("login");
+        }}
       />
     );
   }

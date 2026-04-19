@@ -997,6 +997,36 @@ button, input, textarea, select {
   background: var(--border);
   border-radius: 3px;
 }
+  .rd-slide-shell {
+  animation: rdSlideIn .28s cubic-bezier(.22,1,.36,1);
+  will-change: transform, opacity;
+}
+
+.rd-slide-exit {
+  animation: rdSlideOut .22s cubic-bezier(.4,0,.2,1);
+}
+
+@keyframes rdSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(28px) scale(.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes rdSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-24px) scale(.98);
+  }
+}
 `;
 
 const VEHICLES = ["Motorcycle (Bike)", "Tricycle (Keke)", "Mini Van"];
@@ -1453,7 +1483,8 @@ function RiderStep4({ data, setData, onSubmit, onBack, loading }) {
 }
 
 // ─── Rider Registration ──────────────────────────────────────────────────────
-export function RiderRegisterForm({ onSuccess }) {
+export function RiderRegisterForm({ onSuccess, onBack }) {
+  const [isExiting, setIsExiting] = useState(false);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1511,7 +1542,70 @@ export function RiderRegisterForm({ onSuccess }) {
   };
 
   return (
-    <div className="rd-reg-screen">
+    <div className={`rd-reg-screen rd-slide-shell ${isExiting ? "rd-slide-exit" : ""}`}>
+      <div style={{ padding: "16px 20px 0" }}>
+  <button
+   onClick={() => {
+  setIsExiting(true);
+  setTimeout(() => {
+    if (typeof onBack === "function") {
+      onBack();
+    }
+  }, 220);
+}}
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "10px",
+      background: "rgba(255,255,255,0.06)",
+      border: "1px solid rgba(255,255,255,0.10)",
+      borderRadius: "999px",
+      padding: "10px 16px 10px 10px",
+      cursor: "pointer",
+      backdropFilter: "blur(14px)",
+      WebkitBackdropFilter: "blur(14px)",
+      boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: 600,
+      letterSpacing: "0.01em",
+      transition: "transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease",
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.transform = "translateX(-4px)";
+      e.currentTarget.style.background = "rgba(255,255,255,0.10)";
+      e.currentTarget.style.borderColor = "rgba(255,255,255,0.16)";
+      e.currentTarget.style.boxShadow = "0 12px 28px rgba(0,0,0,0.22)";
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.transform = "translateX(0)";
+      e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+      e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)";
+      e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.18)";
+    }}
+  >
+    <span
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: "999px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0.06))",
+        border: "1px solid rgba(255,255,255,0.10)",
+        fontSize: 15,
+        lineHeight: 1,
+        flexShrink: 0,
+      }}
+    >
+      ←
+    </span>
+
+    <span>Back to Sign In</span>
+  </button>
+</div>
+
       <style>{RD_CSS}</style>
 
       <div className="rd-reg-hero">
@@ -2408,7 +2502,7 @@ export default function RiderDashboard() {
             }}
           >
             <strong>{registered.name}</strong>, your rider application is under
-            review. You'll be notified within 24–48 hours once approved!
+            review. You'll be notified within 24-48 hours once approved!
           </div>
 
           <div
@@ -2422,7 +2516,7 @@ export default function RiderDashboard() {
               marginBottom: 20,
             }}
           >
-            ⏱ Review typically takes 24–48 hours
+            ⏱ Review typically takes 24-48 hours
           </div>
 
           <button
@@ -2447,6 +2541,7 @@ export default function RiderDashboard() {
           setRegistered(info);
           setShowRegister(false);
         }}
+        onBack={() => setShowRiderReg(false)}S
       />
     );
   }

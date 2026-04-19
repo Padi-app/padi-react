@@ -128,6 +128,36 @@ const AUTH_CSS = `
 .signup-step-pill.pending {
   background: var(--border);
 }
+  .auth-slide-shell {
+  animation: authSlideIn .28s cubic-bezier(.22,1,.36,1);
+  will-change: transform, opacity;
+}
+
+.auth-slide-exit {
+  animation: authSlideOut .22s cubic-bezier(.4,0,.2,1);
+}
+
+@keyframes authSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(28px) scale(.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes authSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-24px) scale(.98);
+  }
+}
 `;
 
 // ── University selector ───────────────────────────────────────────────────────
@@ -278,7 +308,7 @@ function OTPInput({ value, onChange, onComplete }) {
 }
 
 // ── Student signup ────────────────────────────────────────────────────────────
-function StudentSignup() {
+function StudentSignup({ isStudentExiting }) {
   const { register, requestOTP, confirmOTP, error, setError } = useAuth();
 
   const [step, setStep] = useState(0);
@@ -385,7 +415,10 @@ function StudentSignup() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+  <div
+    className={`auth-slide-shell ${isStudentExiting ? "auth-slide-exit" : ""}`}
+    style={{ display: "flex", flexDirection: "column", gap: 16 }}
+  >
       <div className="signup-step-bar">
         {[0, 1, 2].map((i) => (
           <div
@@ -593,6 +626,7 @@ export function AuthScreenWithRider({
   error,
   setError,
 }) {
+  const [isStudentExiting, setIsStudentExiting] = useState(false);
   const [mode, setMode] = useState("student");
   const [tab, setTab] = useState("login");
   const [email, setEmail] = useState("");
@@ -611,16 +645,39 @@ export function AuthScreenWithRider({
     setLoading(false);
   };
 
-  if (showRiderReg) {
-    return (
+    if (showRiderReg) {
+  return (
+    <div>
+      <div style={{ padding: "16px 20px 0" }}>
+        <button
+          onClick={() => setShowRiderReg(false)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: "999px",
+            padding: "8px 16px",
+            cursor: "pointer",
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          <span>←</span>
+          <span>Back to Sign In</span>
+        </button>
+      </div>
+
       <RiderRegisterForm
         onSuccess={(info) => {
           setRiderDone(info);
           setShowRiderReg(false);
         }}
+        onBack={() => setShowRiderReg(false)}
       />
-    );
-  }
+    </div>
+  );
+}
 
   if (riderDone) {
     return (
@@ -664,7 +721,7 @@ export function AuthScreenWithRider({
             }}
           >
             <strong>{riderDone.name}</strong>, the admin has been notified.
-            You’ll get an email once approved!
+            You'll get an email once approved!
           </div>
           <button
             className="btn btn-ghost"
@@ -724,7 +781,7 @@ export function AuthScreenWithRider({
             }}
           >
             <strong>{vendorPending.businessName}</strong> is under review.
-            You’ll get an email on approval!
+            You'll get an email on approval!
           </div>
           <div
             style={{
@@ -737,7 +794,7 @@ export function AuthScreenWithRider({
               marginBottom: 16,
             }}
           >
-            ⏱ Review: 24–48 hours
+            ⏱ Review: 24-48 hours
           </div>
           <button
             className="btn btn-ghost"
@@ -760,6 +817,10 @@ export function AuthScreenWithRider({
       <VendorRegisterForm
         onSuccess={(info) => setVendorPending(info)}
         onSwitchToLogin={() => {
+          setTab("login");
+          setMode("vendor");
+        }}
+        onBack={() => {
           setTab("login");
           setMode("vendor");
         }}
@@ -887,14 +948,14 @@ export function AuthScreenWithRider({
           {mode === "student"
             ? tab === "login"
               ? "Order food, rides and more on your campus."
-              : "Sign up with any email. No school email needed!"
+              : "Sign up with your email to get started."
             : mode === "vendor"
             ? tab === "login"
               ? "Manage your shop and orders."
               : "Reach students across Nigeria."
             : tab === "login"
             ? "Sign in to your rider account."
-            : "Earn ₦300 per delivery."}
+            : "Earn ₦500 per delivery."}
         </p>
       </div>
 
@@ -903,8 +964,13 @@ export function AuthScreenWithRider({
           <div
             className={`auth-tab ${tab === "login" ? "active" : ""}`}
             onClick={() => {
-              setTab("login");
-              setError(null);
+              setIsStudentExiting(true);
+
+              setTimeout(() => {
+                setTab("login");
+                setError(null);
+                setIsStudentExiting(false);
+              }, 220);
             }}
           >
             Sign In
@@ -913,8 +979,13 @@ export function AuthScreenWithRider({
           <div
             className={`auth-tab ${tab === "signup" ? "active" : ""}`}
             onClick={() => {
-              setTab("signup");
-              setError(null);
+              setIsStudentExiting(true);
+
+              setTimeout(() => {
+                setTab("signup");
+                setError(null);
+                setIsStudentExiting(false);
+              }, 220);
             }}
           >
             {mode === "vendor"
@@ -927,7 +998,7 @@ export function AuthScreenWithRider({
 
         {error && tab === "login" && <div className="error-box">{error}</div>}
 
-        {mode === "student" && tab === "signup" && <StudentSignup />}
+        {mode === "student" && tab === "signup" && <StudentSignup isStudentExiting={isStudentExiting} />}
 
         {mode === "rider" && tab === "signup" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
-import { db } from "./lib/firebase";
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "./lib/firebase";
 import {
-collection, getDocs, doc, updateDoc, query,
-orderBy, where, serverTimestamp
+  collection, 
+  getDocs,
+  query,
+  orderBy,
 } from "firebase/firestore";
-import { notifyVendorApproved, notifyRiderApproved } from "./notifications";
 
-// ─── Admin Credentials (change these!) ───────────────────────────────────────
-const ADMIN_EMAIL = "admin@padi.ng";
-const ADMIN_PASSWORD = "PadiAdmin2025!";
+const API_BASE=`${import.meta.env.VITE_API_URL}/api/admin`;
 
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 const ADMIN_CSS = `
@@ -134,47 +134,62 @@ const MOCK_DISPUTES = [
 
 // ─── Admin Login ──────────────────────────────────────────────────────────────
 function AdminLogin({ onLogin }) {
-const [email, setEmail] = useState("");
-const [pass, setPass] = useState("");
-const [error, setError] = useState("");
-const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-const handleLogin = () => {
-setLoading(true);
-setTimeout(() => {
-if (email === ADMIN_EMAIL && pass === ADMIN_PASSWORD) {
-onLogin();
-} else {
-setError("Invalid admin credentials.");
-}
-setLoading(false);
-}, 800);
-};
+  const handleLogin = async () => {
+    setLoading(true);
+    setError("");
 
-return (
-<div className="admin-login">
-<style>{ADMIN_CSS}</style>
-<div className="admin-login-card">
-<div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
-<div className="admin-logo-icon">P</div>
-<span style={{ fontFamily: "var(–font-head)", fontWeight: 800, fontSize: 18 }}>PADI Admin</span>
-</div>
-<div className="admin-login-title">Welcome back 👋</div>
-<div className="admin-login-sub">Sign in to access the admin dashboard.</div>
-{error && (
-<div style={{ background: "rgba(255,68,68,.1)", border: "1px solid rgba(255,68,68,.2)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#FF4444", marginBottom: 14 }}>
-{error}
-</div>
-)}
-<input className="admin-input" type="email" placeholder="Admin email" value={email} onChange={e => setEmail(e.target.value)} />
-<input className="admin-input" type="password" placeholder="Password" value={pass}
-onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && handleLogin()} />
-<button className="admin-btn-primary" onClick={handleLogin} disabled={loading}>
-{loading ? "Signing in..." : "Sign In →"}
-</button>
-</div>
-</div>
-);
+    try {
+      const res = await signInWithEmailAndPassword(auth, email, pass);
+
+      const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || "")
+        .toLowerCase()
+        .trim();
+
+      if (res.user.email.toLowerCase() !== adminEmail) {
+        await signOut(auth);
+        setError("Not authorized as admin");
+        setLoading(false);
+        return;
+      }
+
+      onLogin();
+    } catch (err) {
+      setError("Invalid credentials");
+    }
+
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ padding: 40 }}>
+      <h2>PADI Admin Login</h2>
+
+      <input
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+
+      <input
+        type="password"
+        placeholder="Password"
+        value={pass}
+        onChange={(e) => setPass(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+      />
+
+      <button onClick={handleLogin}>
+        {loading ? "Signing in..." : "Login"}
+      </button>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+    </div>
+  );
 }
 
 // ─── Overview Page ────────────────────────────────────────────────────────────
@@ -548,156 +563,188 @@ return (
 
 // ─── Main Admin Dashboard ─────────────────────────────────────────────────────
 export default function AdminDashboard() {
-const [authed, setAuthed] = useState(false);
-const [page, setPage] = useState("overview");
-const [vendors, setVendors] = useState([]);
-const [riders, setRiders] = useState([]);
-const [students, setStudents] = useState([]);
-const [loadingData, setLoadingData] = useState(true);
-const [actionLoading, setActionLoading] = useState(false);
-const [toast, setToast] = useState(null);
+  const [authed, setAuthed] = useState(false);
+  const [vendors, setVendors] = useState([]);
+  const [riders, setRiders] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
-const showToast = (msg, color = "var(–green)") => {
-setToast({ msg, color });
-setTimeout(() => setToast(null), 3000);
+  const showToast = (msg) => alert(msg);
+
+  /* ─── AUTH LISTENER ─── */
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setAuthed(!!user);
+    });
+
+    return () => unsub();
+  }, []);
+
+  /* ─── FETCH DATA ─── */
+  const fetchAll = async () => {
+    setLoading(true);
+
+    try {
+      const [vendorSnap, userSnap] = await Promise.all([
+        getDocs(query(collection(db, "vendors"), orderBy("createdAt", "desc"))),
+        getDocs(query(collection(db, "users"), orderBy("createdAt", "desc"))),
+      ]);
+
+      const vendorData = vendorSnap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      const userData = userSnap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      setVendors(vendorData);
+      setRiders(userData.filter((u) => u.role === "rider"));
+    } catch (e) {
+      console.error(e);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (authed) fetchAll();
+  }, [authed]);
+
+  /* ─── HANDLE ACTION ─── */
+  const handleAction = async (id, newStatus, collectionName) => {
+  setActionLoading(true);
+
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Admin not authenticated");
+
+    const token = await user.getIdToken();
+
+    const actionMap = {
+      active: "approve",
+      rejected: "reject",
+      suspended: "suspend",
+    };
+
+    const action = actionMap[newStatus];
+
+    const endpoint =
+      collectionName === "vendors"
+        ? "vendor-action"
+        : "rider-action";
+
+    const body =
+      collectionName === "vendors"
+        ? { vendorId: id, action }
+        : { riderId: id, action };
+
+    const res = await fetch(`${API_BASE}/${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Action failed");
+    }
+
+    await fetchAll();
+    showToast(data.message || "Action successful!");
+  } catch (e) {
+    console.error(e);
+    showToast(e.message, "var(--red)");
+  }
+
+  setActionLoading(false);
 };
 
-const fetchAll = async () => {
-setLoadingData(true);
-try {
-const [vendorSnap, riderSnap, studentSnap] = await Promise.all([
-getDocs(query(collection(db, "vendors"), orderBy("createdAt", "desc"))),
-getDocs(query(collection(db, "riders"), orderBy("createdAt", "desc"))).catch(() => ({ docs: [] })),
-getDocs(query(collection(db, "users"), orderBy("createdAt", "desc"))).catch(() => ({ docs: [] })),
-]);
-setVendors(vendorSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-setRiders(riderSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-setStudents(studentSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-} catch (e) {
-console.error(e);
-}
-setLoadingData(false);
-};
+  /* ─── SIGN OUT ─── */
+  const logout = async () => {
+    await signOut(auth);
+    setAuthed(false);
+  };
 
-useEffect(() => { if (authed) fetchAll(); }, [authed]);
+  /* ─── UI ─── */
+  if (!authed) return <AdminLogin onLogin={() => setAuthed(true)} />;
 
-const handleAction = async (id, newStatus, collectionName) => {
-setActionLoading(true);
-try {
-await updateDoc(doc(db, collectionName, id), {
-status: newStatus,
-updatedAt: serverTimestamp(),
-});
+  return (
+    <div style={{ padding: 30 }}>
+      <h1>PADI Admin Dashboard</h1>
 
-if (newStatus === "active" && collectionName === "vendors") {
-    await notifyVendorApproved({ vendorId: id, businessName: vendor.businessName });
-}
-if (newStatus === "active" && collectionName === "riders") {
-    await notifyRiderApproved({ riderId: id, name: rider.name });
-}
+      <button onClick={logout}>Logout</button>
 
-await fetchAll();
-showToast(`${collectionName.slice(0, -1)} ${newStatus} successfully!`);
-} catch (e) {
-showToast("Action failed. Try again.", "var(–red)");
-}
-setActionLoading(false);
-};
+      {loading && <p>Loading...</p>}
 
-const stats = {
-students: students.length,
-activeVendors: vendors.filter(v => v.status === "active").length,
-pendingVendors: vendors.filter(v => v.status === "pending").length,
-pendingRiders: riders.filter(r => r.status === "pending").length,
-suspended: [...vendors, ...riders, ...students].filter(x => x.status === "suspended").length,
-orders: 47, // Replace with real Firestore orders count later
-};
+      {/* ─── VENDORS ─── */}
+      <h2>Vendors</h2>
+      {vendors.map((v) => (
+        <div key={v.id} style={{ marginBottom: 10 }}>
+          <strong>{v.businessName}</strong> — {v.status}
 
-const NAV = [
-{ key: "overview", icon: "📊", label: "Overview" },
-{ key: "vendors", icon: "🏪", label: "Vendors", badge: stats.pendingVendors },
-{ key: "riders", icon: "🛵", label: "Riders", badge: stats.pendingRiders },
-{ key: "students", icon: "🎓", label: "Students" },
-{ key: "disputes", icon: "⚠️", label: "Disputes", badge: 2 },
-{ key: "analytics", icon: "📈", label: "Analytics" },
-];
+          {v.status === "pending" && (
+            <>
+              <button onClick={() => handleAction(v.id, "active", "vendors")}>
+                Approve
+              </button>
+              <button onClick={() => handleAction(v.id, "rejected", "vendors")}>
+                Reject
+              </button>
+            </>
+          )}
 
-const PAGE_TITLES = {
-overview: { title: "Dashboard Overview", sub: "Welcome back, Admin 👋" },
-vendors: { title: "Vendor Management", sub: "Approve, reject or suspend vendors" },
-riders: { title: "Rider Management", sub: "Manage delivery riders" },
-students: { title: "Student Management", sub: "Monitor and manage student accounts" },
-disputes: { title: "Disputes & Flags", sub: "Handle fraud, abuse and stuck orders" },
-analytics: { title: "Analytics", sub: "Platform health and revenue overview" },
-};
+          {v.status === "active" && (
+            <button onClick={() => handleAction(v.id, "suspended", "vendors")}>
+              Suspend
+            </button>
+          )}
 
-if (!authed) return <AdminLogin onLogin={() => setAuthed(true)} />;
+          {v.status === "suspended" && (
+            <button onClick={() => handleAction(v.id, "active", "vendors")}>
+              Reinstate
+            </button>
+          )}
+        </div>
+      ))}
 
-return (
-<div className="admin-root">
-<style>{ADMIN_CSS}</style>
+      {/* ─── RIDERS ─── */}
+      <h2>Riders</h2>
+      {riders.map((r) => (
+        <div key={r.id} style={{ marginBottom: 10 }}>
+          <strong>{r.name}</strong> — {r.status}
 
-```
-  {/* Sidebar */}
-  <div className="admin-sidebar">
-    <div className="admin-logo">
-      <div className="admin-logo-icon">P</div>
-      <div>
-        <div className="admin-logo-text">PADI</div>
-        <div className="admin-logo-badge">ADMIN</div>
-      </div>
+          {r.status === "pending" && (
+            <>
+              <button onClick={() => handleAction(r.id, "active", "riders")}>
+                Approve
+              </button>
+              <button onClick={() => handleAction(r.id, "rejected", "riders")}>
+                Reject
+              </button>
+            </>
+          )}
+
+          {r.status === "active" && (
+            <button onClick={() => handleAction(r.id, "suspended", "riders")}>
+              Suspend
+            </button>
+          )}
+
+          {r.status === "suspended" && (
+            <button onClick={() => handleAction(r.id, "active", "riders")}>
+              Reinstate
+            </button>
+          )}
+        </div>
+      ))}
     </div>
-
-    <div className="admin-nav-section">Main</div>
-    {NAV.map(n => (
-      <div key={n.key} className={`admin-nav-item ${page === n.key ? "active" : ""}`} onClick={() => setPage(n.key)}>
-        <span className="admin-nav-icon">{n.icon}</span>
-        <span>{n.label}</span>
-        {n.badge > 0 && <span className="admin-nav-badge">{n.badge}</span>}
-      </div>
-    ))}
-
-    <div style={{ flex: 1 }} />
-    <div className="admin-nav-item" onClick={() => setAuthed(false)} style={{ marginTop: "auto", color: "var(--red)" }}>
-      <span className="admin-nav-icon">🚪</span>
-      <span>Sign Out</span>
-    </div>
-  </div>
-
-  {/* Main */}
-  <div className="admin-main">
-    <div className="admin-topbar">
-      <div>
-        <div className="admin-page-title">{PAGE_TITLES[page].title}</div>
-        <div className="admin-page-sub">{PAGE_TITLES[page].sub}</div>
-      </div>
-      <button onClick={fetchAll} style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 16px", color: "var(--text)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-        🔄 Refresh
-      </button>
-    </div>
-
-    <div className="admin-content">
-      {loadingData ? (
-        <div style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>Loading data...</div>
-      ) : (
-        <>
-          {page === "overview" && <OverviewPage stats={stats} />}
-          {page === "vendors" && <VendorsPage vendors={vendors} onAction={handleAction} loading={actionLoading} />}
-          {page === "riders" && <RidersPage riders={riders} onAction={handleAction} loading={actionLoading} />}
-          {page === "students" && <StudentsPage students={students} onAction={handleAction} loading={actionLoading} />}
-          {page === "disputes" && <DisputesPage />}
-          {page === "analytics" && <AnalyticsPage stats={stats} />}
-        </>
-      )}
-    </div>
-  </div>
-
-  {toast && (
-    <div className="admin-toast" style={{ borderColor: toast.color }}>
-      <span style={{ color: toast.color }}>●</span> {toast.msg}
-    </div>
-  )}
-</div>
-
-);
+  );
 }

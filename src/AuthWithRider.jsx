@@ -647,37 +647,16 @@ export function AuthScreenWithRider({
 
     if (showRiderReg) {
   return (
-    <div>
-      <div style={{ padding: "16px 20px 0" }}>
-        <button
-          onClick={() => setShowRiderReg(false)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: "999px",
-            padding: "8px 16px",
-            cursor: "pointer",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <span>←</span>
-          <span>Back to Sign In</span>
-        </button>
-      </div>
-
-      <RiderRegisterForm
-        onSuccess={(info) => {
-          setRiderDone(info);
-          setShowRiderReg(false);
-        }}
-        onBack={() => setShowRiderReg(false)}
-      />
-    </div>
+    <RiderRegisterForm
+      onSuccess={(info) => {
+        setRiderDone(info);
+        setShowRiderReg(false);
+      }}
+      onBack={() => setShowRiderReg(false)}
+    />
   );
 }
+
 
   if (riderDone) {
     return (
